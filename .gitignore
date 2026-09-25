@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# 运行时产物：成片解析输出不入库
+_review/
+frames/
+transcript.txt
+transcript.srt
+ocr.txt
+review.json
+review.md
+contact_sheet.jpg
+
+# 本地账号信息（切勿入库）
+account-profile.local.md
+.local/
+
+# 编辑器与系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 凭据
+.env
+.env.*
+*.pem
+*.key
+credentials.json
