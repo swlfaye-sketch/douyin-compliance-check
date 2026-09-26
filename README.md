@@ -35,7 +35,7 @@
 
 ## 检查什么
 
-**十类风险**
+**十一类风险**
 
 | # | 类别 | 要点 |
 |---|---|---|
@@ -48,13 +48,16 @@
 | 7 | 版权与素材 | 影视片段、背景音乐、肖像、声音、二创加工不足 |
 | 8 | 商业内容与特殊类目 | 报备义务、站外成交、价格可核验、诱导互动 |
 | 9 | 未成年人保护 | 不得出镜带货、不得代言与其年龄不符的商品 |
-| 10 | 同质化与账号生态 | 批量炮制、模板化文案、画风重复 |
+| 10 | 同质化与账号生态 | 批量炮制、模板化文案、画风重复；批量扫描给出相似度量化 |
+| 11 | 全链路 | 简介、置顶评论、私信话术、直播口播同属巡检范围，不要只查正文 |
 
 **四级判定**：必改 / 建议改 / 提醒 / **建议放弃选题**。
 
 第四级是本技能独有的一档——**有些选题的属性能量无法通过改写得掉**（例如"教人获取某项能力"＋无人无实景画面的组合），此时如实告知换选题，而不是给一份看着干净、实则仍会出问题的改写稿。
 
-**七类加严清单**（`references/categories.md`）：医疗健康、金融理财、知识付费与课程、带货与商业内容、教育与培训、房产招聘与本地生活、母婴与儿童消费品，另含科技与 AI 工具类。每类给出资质前置要求、禁语与安全写法对照。
+**八类加严清单**（`references/categories.md`）：医疗健康、金融理财、科技与 AI 工具、教育与培训、带货与商业内容、房产、招聘与兼职、母婴与儿童消费品。每类给出资质前置要求、禁语与安全写法对照。
+
+**AI 生成声明检查**：扫描器会在文案里查找生成类信号（AI 生成、AI 配音、数字人、AI 绘画等）与明确披露句（由 AI 生成、本视频由…AI 等）。**检出信号而未检出披露句时会提示补充声明**；已声明时不报——「本视频由 AI 生成」这类披露句本来就该零命中。
 
 ---
 
@@ -88,7 +91,21 @@ python scripts/scan_text.py --json-input draft.json
 }
 ```
 
-**模式 B · 解析成片**（涉及画面形态问题时）
+**模式 B · 批量扫一整套草稿**
+
+```bash
+python scripts/scan_text.py <目录> --category <品类> --json --out report.json
+```
+
+批量内置三项能力，不需要自己写循环：
+
+| 能力 | 说明 |
+|---|---|
+| 目录递归扫描 | 目录下所有 `.txt / .md / .json / .srt` 逐个扫描，报告字段名带文件名前缀以示来源 |
+| 结构化草稿自动识别 | 遇到含 `fields` 的 JSON 草稿，自动按多字段解析，不当纯文本处理 |
+| **同质化相似度** | 两两计算字符 3-gram Jaccard 相似度，列出 ≥ 0.30 的组合，识别"同一套模板换皮" |
+
+**模式 C · 解析成片**（涉及画面形态问题时）
 
 ```bash
 python scripts/extract_video.py --video 成片.mp4 --model small
@@ -102,11 +119,9 @@ python scripts/extract_video.py --video 成片.mp4 --model small
 2. 看有无真人面部、有无录屏特征（状态栏、鼠标指针、竖向黑边）、是实景拍摄还是模板化图文卡片；
 3. 结合汇总里的人脸检出占比——确认为 0 即按"无真人出镜"处理。
 
-**模式 C · 批量扫历史文案**
-
-```bash
-python scripts/scan_text.py <目录> --category <品类> --json --out report.json
-```
+> 🔒 **语音模型默认不联网。** 脚本定位是纯本地解析、素材不出本机；本地没有模型时不会自动下载，
+> 而是如实报出并给出补齐方式，确需联网须显式加 `--allow-network`。
+> 完整的依赖安装、参数与产出解读见 `references/video-guide.md`。
 
 ---
 
@@ -124,18 +139,22 @@ python scripts/scan_text.py <目录> --category <品类> --json --out report.jso
 
 ```
 douyin-compliance-check/
-├── SKILL.md                            主文件：流程、检查清单、判定标准、输出格式
+├── SKILL.md                            主文件：流程、检查总览、判定标准、输出格式
+├── LICENSE                             MIT 许可正文，附使用须知
 ├── assets/
 │   ├── report-template.md              审核报告模板
 │   └── quick-check.md                  一页速查卡
 ├── references/
 │   ├── account-profile.md              账号信息卡（可选填写）
 │   ├── categories.md                   品类加严清单（八类）
+│   ├── checklist.md                    十一类检查清单完整版
 │   ├── compliance-rules.md             完整规则库（二十大节）
 │   ├── platform-rules-sources.md       依据来源档与复核清单
-│   └── wordlist.json                   分级词表（A/B/C 判级 ＋ 八品类附加词条）
+│   ├── video-guide.md                  成片解析操作指引（依赖、参数、产出解读）
+│   ├── wordlist-guide.md               词表使用说明（分级、共现、抑制、扩词方法）
+│   └── wordlist.json                   分级词表（A/B/C/D 判级 ＋ 八品类附加词条）
 └── scripts/
-    ├── scan_text.py                    文字扫描
+    ├── scan_text.py                    文字扫描（多字段／批量／相似度）
     └── extract_video.py                成片解析
 ```
 
@@ -144,9 +163,9 @@ douyin-compliance-check/
 | 脚本 | 依赖 |
 |---|---|
 | `scan_text.py` | **零第三方依赖**，纯 Python 标准库 |
-| `extract_video.py` | `ffmpeg`（必需，抽帧与音轨）；`faster-whisper`（口播转写）、`Pillow`（画面信号）、`tesseract`（画面取字）均为**可选增强，缺哪项就降级跳过哪项** |
+| `extract_video.py` | `ffmpeg`（必需，抽帧与音轨）；`faster-whisper`（口播转写）、`OpenCV`（人脸检出）、`Pillow`（画面信号）、`tesseract`（画面取字）均为**可选增强，缺哪项就降级跳过哪项** |
 
-转写模型默认 `small`。有本地模型缓存时走离线加载，不外连。
+转写模型默认 `small`。有本地模型缓存时走离线加载，**默认不外连**。
 
 ---
 
@@ -158,7 +177,8 @@ douyin-compliance-check/
 
 ## 规则依据与时效
 
-规则依据截至 **2026-09-25**，逐条标注来源与核对级别（`references/platform-rules-sources.md`）。
+规则依据核对至 **2026-09-25**；**判据口径修订于 2026-09-26**（v2.0.0）。
+逐条标注来源与核对级别（`references/platform-rules-sources.md`）。
 
 平台规则变动频繁，**超过一个月未更新须重新核对**。该文件同时列出复核清单，并写明一条自用规矩：**带 AI 生成声明的网页内容不得作为依据**。
 

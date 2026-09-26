@@ -164,10 +164,14 @@ def resolve_cached_model(name):
     return None
 
 
-def transcribe(wav, model_size, lang, vad):
+def transcribe(wav, model_size, lang, vad, allow_network=False):
     """返回 (segments, note)。segments 元素为 (start, end, text)。
 
-    三级回退：本地缓存目录 → 模型名（仅用本地文件）→ 模型名（允许联网下载）。
+    回退链：本地缓存目录 → 模型名（仅用本地文件）→ 模型名（允许联网下载，**须显式开启**）。
+
+    ⚠️ 默认不联网。本脚本的定位是「纯本地解析、不上传素材」，
+    联网下载模型与该定位相冲突，故最后一级回退只在 --allow-network 时启用。
+    模型缺失且未开启联网时，如实说明并给出补齐模型的做法。
     """
     try:
         from faster_whisper import WhisperModel
@@ -181,7 +185,8 @@ def transcribe(wav, model_size, lang, vad):
     if cached:
         attempts.append((cached, True, "本地缓存目录"))
     attempts.append((model_size, True, "模型名（仅用本地文件）"))
-    attempts.append((model_size, False, "模型名（允许联网下载）"))
+    if allow_network:
+        attempts.append((model_size, False, "模型名（允许联网下载）"))
 
     last_err = ""
     for target, local_only, desc in attempts:
@@ -200,6 +205,14 @@ def transcribe(wav, model_size, lang, vad):
         except Exception as exc:
             last_err = "%s 转写失败：%s" % (desc, exc)
             continue
+    if not allow_network and not cached:
+        last_err += (
+            "\n  ⓘ 本地未找到「%s」模型，且默认不联网。三种处理方式："
+            "\n     ① 用 --model base（体积更小，可能已随依赖装好）；"
+            "\n     ② 预先下载模型放入 HuggingFace 缓存后重跑；"
+            "\n     ③ 显式加 --allow-network 允许下载（会联网，与「纯本地」定位不符，请自行确认）。"
+            % model_size
+        )
     return None, last_err or "转写失败，原因未知。"
 
 
@@ -512,6 +525,8 @@ def main():
     ap.add_argument("--lang", default="zh", help="转写语言（默认 zh）")
     ap.add_argument("--max-seconds", type=float, default=0,
                     help="只转写前 N 秒（0 表示全量）")
+    ap.add_argument("--allow-network", action="store_true",
+                    help="允许联网下载语音模型（默认关闭，保持纯本地解析）")
     ap.add_argument("--skip-asr", action="store_true", help="跳过语音转写")
     ap.add_argument("--skip-ocr", action="store_true", help="跳过画面取字")
     ap.add_argument("--skip-frames", action="store_true", help="跳过抽帧")
@@ -577,7 +592,8 @@ def main():
                 log("  ✗ 提取音频失败")
             else:
                 log("  音频已提取，开始转写（模型 %s）…" % args.model)
-                segs, tnote = transcribe(wav, args.model, args.lang, vad=False)
+                segs, tnote = transcribe(wav, args.model, args.lang, vad=False,
+                                         allow_network=args.allow_network)
                 if segs is None:
                     notes.append("语音转写跳过：%s" % tnote)
                     log("  ✗ 转写跳过：%s" % tnote)
